@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build/logs
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+logs/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Data
+*.sqlite3
