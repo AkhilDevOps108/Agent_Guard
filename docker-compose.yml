@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -23,17 +21,22 @@ services:
     container_name: agentguard-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: agentguard-backend
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     environment:
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/agentguard
@@ -42,48 +45,6 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: agentguard-worker
-    command: celery -A app.worker worker --loglevel=info
-    depends_on:
-      - redis
-      - postgres
-    environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/agentguard
-      REDIS_URL: redis://redis:6379/0
-    volumes:
-      - ./backend:/app
-
-  prometheus:
-    image: prom/prometheus:v2.54.1
-    container_name: agentguard-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana:11.1.0
-    container_name: agentguard-grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-
-  otel-collector:
-    image: otel/opentelemetry-collector:0.106.1
-    container_name: agentguard-otel
-    command: ["--config=/etc/otelcol/config.yaml"]
-    volumes:
-      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml
-    ports:
-      - "4317:4317"
-      - "4318:4318"
 
 volumes:
   postgres_data:

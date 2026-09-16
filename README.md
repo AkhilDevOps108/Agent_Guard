@@ -34,11 +34,82 @@ The backend exposes API endpoints, persists results in PostgreSQL, schedules eva
 
 ## Local setup
 
-1. Create a virtual environment.
-2. Install requirements.
-3. Copy `.env.example` to `.env`.
-4. Start local services with Docker Compose.
-5. Run tests with pytest.
+Phase 1 provides the FastAPI foundation, PostgreSQL schema, Redis service, and
+environment-driven local configuration. Phase 2 adds a LangGraph customer
+support agent with validated tools and structured execution traces. The
+evaluation engine, worker, frontend, and observability stack are planned for
+later phases.
+
+1. Create and activate a virtual environment:
+
+	```bash
+	python3.12 -m venv venv
+	source venv/bin/activate
+	```
+
+2. Install backend dependencies:
+
+	```bash
+	pip install -r requirements.txt
+	```
+
+3. Create local configuration:
+
+	```bash
+	cp .env.example .env
+	```
+
+4. Run the tests without external services:
+
+	```bash
+	pytest -q backend
+	```
+
+5. Start the Phase 1 services:
+
+	```bash
+	docker compose up --build -d
+	```
+
+6. Apply the database migration:
+
+	```bash
+	alembic upgrade head
+	```
+
+7. Verify the API:
+
+	```bash
+	curl http://localhost:8000/health
+	curl http://localhost:8000/
+	```
+
+8. Stop the services when finished:
+
+	```bash
+	docker compose down
+	```
+
+The initial migration creates the `agents`, `test_runs`,
+`evaluation_results`, and `trace_records` tables. Set `DATABASE_URL` in `.env`
+to use a different PostgreSQL instance. The Phase 2 agent works without an API
+key using deterministic local support data. Set `OPENAI_API_KEY`,
+`OPENAI_BASE_URL`, and `OPENAI_MODEL` to enable an OpenAI-compatible response
+model when needed.
+
+### Phase 2 agent demo
+
+Start the API, then run:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/agent/invoke \
+	-H 'Content-Type: application/json' \
+	-d '{"message":"My order ORD-1002 arrived damaged"}'
+```
+
+The damaged-order flow calls `get_order`, `create_ticket`, and
+`escalate_to_human`. Every tool span includes arguments, output, timing, and
+status so later AgentGuard trace collection can persist it.
 
 ## Example agent
 
