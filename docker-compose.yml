@@ -46,6 +46,24 @@ services:
     volumes:
       - ./backend:/app
 
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: agentguard-worker
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/agentguard
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+
   frontend:
     build:
       context: ./frontend

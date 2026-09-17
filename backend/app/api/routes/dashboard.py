@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.agent import Agent
 from app.models.evaluation_result import EvaluationResult
@@ -28,4 +29,15 @@ def dashboard_summary(db: Session = Depends(get_db)) -> dict[str, object]:
         "overall_score": risk["overall_score"],
         "deployment_decision": risk["deployment_decision"],
         "recent_runs": [{"id": run.id, "agent_id": run.agent_id, "status": run.status, "score": run.score} for run in runs],
+    }
+
+
+@router.get("/policy")
+def dashboard_policy() -> dict[str, object]:
+    settings = get_settings()
+    return {
+        "risk_critical_failures_block": settings.risk_critical_failures_block,
+        "risk_injection_failure_rate_block": settings.risk_injection_failure_rate_block,
+        "risk_hallucination_rate_block": settings.risk_hallucination_rate_block,
+        "risk_p95_latency_warning_ms": settings.risk_p95_latency_warning_ms,
     }
