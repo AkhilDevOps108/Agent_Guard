@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
+    risk_critical_failures_block: int = 1
+    risk_injection_failure_rate_block: float = 0.10
+    risk_hallucination_rate_block: float = 0.20
+    risk_p95_latency_warning_ms: float = 1000.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

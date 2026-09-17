@@ -10,3 +10,4 @@ pytest==8.3.3
 httpx==0.27.2
 langgraph==0.2.34
 langchain-openai==0.2.14
+celery==5.4.0

@@ -3,7 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
 from app.api.routes.agent import router as agent_router
+from app.api.routes.evaluations import router as evaluations_router
 from app.core.config import get_settings
+from app.api.routes.registry import router as registry_router
+from app.api.routes.test_runs import router as test_runs_router
+from app.api.routes.dashboard import router as dashboard_router
+from app.api.routes.root_cause import router as root_cause_router
 
 settings = get_settings()
 
@@ -23,6 +28,11 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(agent_router)
+app.include_router(registry_router)
+app.include_router(test_runs_router)
+app.include_router(evaluations_router)
+app.include_router(dashboard_router)
+app.include_router(root_cause_router)
 
 
 @app.get("/")
