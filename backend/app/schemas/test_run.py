@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TestRunCreate(BaseModel):
@@ -9,17 +9,34 @@ class TestRunCreate(BaseModel):
     categories: list[str] = Field(default_factory=lambda: ["security", "quality"])
     inputs: list[str] | None = None
 
+    @field_validator("categories")
+    @classmethod
+    def validate_categories(cls, values: list[str]) -> list[str]:
+        allowed = {"security", "quality", "reliability"}
+        values = list(dict.fromkeys(value.lower() for value in values))
+        if not values or any(value not in allowed for value in values):
+            raise ValueError("categories must contain security, quality, or reliability")
+        return values
+
 
 class TestRunResponse(BaseModel):
     __test__ = False
     id: str
     agent_id: str
+    agent_version: str = "1.0.0"
     status: str
+    categories: list[str] = Field(default_factory=list)
     total_tests: int
     passed: int
     failed: int
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
     score: float | None
     severity_summary: dict[str, int] | None
+    deployment_decision: str | None = None
+    completed_at: Any | None = None
 
 
 class EvaluationResponse(BaseModel):

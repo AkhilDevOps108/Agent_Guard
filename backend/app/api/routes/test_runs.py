@@ -22,12 +22,20 @@ def _run_response(run: TestRun) -> TestRunResponse:
     return TestRunResponse(
         id=run.id,
         agent_id=run.agent_id,
+        agent_version=run.agent_version,
         status=run.status,
+        categories=json.loads(run.categories or "[]"),
         total_tests=run.total_tests,
         passed=run.passed,
         failed=run.failed,
+        critical=run.critical,
+        high=run.high,
+        medium=run.medium,
+        low=run.low,
         score=run.score,
         severity_summary=json.loads(run.severity_summary) if run.severity_summary else None,
+        deployment_decision=run.deployment_decision,
+        completed_at=run.completed_at,
     )
 
 
@@ -35,7 +43,8 @@ def _run_response(run: TestRun) -> TestRunResponse:
 def create_test_run(request: TestRunCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> TestRunResponse:
     if get_agent(db, request.agent_id) is None:
         raise HTTPException(status_code=404, detail="Agent not found")
-    run = TestRun(id=str(uuid.uuid4()), agent_id=request.agent_id, status="queued")
+    agent = get_agent(db, request.agent_id)
+    run = TestRun(id=str(uuid.uuid4()), agent_id=request.agent_id, agent_version=agent.version, categories=json.dumps(request.categories), status="queued")
     db.add(run)
     db.commit()
     try:
@@ -85,4 +94,14 @@ def get_traces(run_id: str, db: Session = Depends(get_db)) -> list[TraceResponse
 
 @router.get("/{run_id}/risk")
 def get_run_risk(run_id: str, db: Session = Depends(get_db)) -> dict[str, object]:
+    if db.get(TestRun, run_id) is None:
+        raise HTTPException(status_code=404, detail="Test run not found")
     return calculate_risk(db, run_id)
+
+
+@router.get("/{run_id}/report")
+def get_run_report(run_id: str, db: Session = Depends(get_db)) -> dict[str, object]:
+    run = db.get(TestRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Test run not found")
+    return {"run_id": run.id, "agent_id": run.agent_id, "agent_version": run.agent_version, "status": run.status, **calculate_risk(db, run_id)}

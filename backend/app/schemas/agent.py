@@ -8,6 +8,7 @@ class AgentCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     version: str = Field(default="1.0.0", max_length=64)
+    environment: str = Field(default="development", min_length=1, max_length=64)
     config: dict[str, Any] | None = None
 
 
@@ -26,5 +27,6 @@ class AgentResponse(BaseModel):
     name: str
     description: str | None
     version: str
+    environment: str
     status: str
     config: dict[str, Any] | None

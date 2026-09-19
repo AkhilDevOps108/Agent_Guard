@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+from datetime import datetime
 from collections import Counter
 from typing import Any
 
@@ -13,6 +14,7 @@ from app.evaluation.security import SECURITY_CASES, run_security_case
 from app.models.evaluation_result import EvaluationResult
 from app.models.test_run import TestRun
 from app.services.trace import persist_trace
+from app.services.risk import calculate_risk
 
 
 def run_evaluation(db: Session, run: TestRun, categories: list[str], inputs: list[str] | None = None) -> TestRun:
@@ -47,7 +49,13 @@ def run_evaluation(db: Session, run: TestRun, categories: list[str], inputs: lis
     run.failed = run.total_tests - run.passed
     run.score = round((run.passed / run.total_tests) * 100, 2) if run.total_tests else 0
     run.severity_summary = json.dumps(dict(severities))
+    run.critical = severities.get("critical", 0)
+    run.high = severities.get("high", 0)
+    run.medium = severities.get("medium", 0)
+    run.low = severities.get("low", 0)
     run.status = "completed"
-    run.created_at = run.created_at
+    db.commit()
+    run.deployment_decision = calculate_risk(db, run.id)["deployment_decision"]
+    run.completed_at = datetime.utcnow()
     db.commit()
     return run

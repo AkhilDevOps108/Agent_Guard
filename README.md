@@ -203,6 +203,8 @@ Verify the services:
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl http://localhost:8000/metrics
 curl http://localhost:8000/api/v1/dashboard/summary
 docker compose ps
 ```
@@ -257,6 +259,7 @@ POST  /api/v1/agents
 GET   /api/v1/agents
 GET   /api/v1/agents/{id}
 PATCH /api/v1/agents/{id}
+GET   /api/v1/agents/{id}/versions
 ```
 
 ### 2. Start an evaluation run
@@ -278,7 +281,10 @@ GET /api/v1/test-runs/{id}
 GET /api/v1/test-runs/{id}/results
 GET /api/v1/test-runs/{id}/traces
 GET /api/v1/test-runs/{id}/risk
+GET /api/v1/test-runs/{id}/report
 GET /api/v1/evaluations/{id}
+POST /api/v1/evaluations/{id}/analyze
+POST /api/v1/evaluations/{id}/regression
 GET /api/v1/dashboard/summary
 GET /api/v1/dashboard/policy
 POST /api/v1/root-cause/analyze
@@ -512,6 +518,9 @@ The current implementation is a functional reference platform, not yet a complet
 - traces and evaluation results are persisted in PostgreSQL;
 - Celery executes asynchronous test runs through Redis;
 - the console reads live backend data and displays overview, agents, test runs, policy, and traces;
+- test runs retain the selected agent version, categories, severity counts, completion time, and deployment decision;
+- `/ready` checks PostgreSQL and Redis, while `/metrics` exposes lightweight Prometheus-format counters;
+- persisted results can be analyzed and converted into regression-test guidance through API endpoints;
 - the quality and risk scores are deterministic internal heuristics;
 - authentication, multi-tenancy, production-grade OpenTelemetry ingestion, and enterprise adapter management are next platform-hardening steps.
 
@@ -539,15 +548,15 @@ docker-compose.yml
 
 | Area | Endpoints |
 | --- | --- |
-| Health | `GET /health`, `GET /` |
+| Health | `GET /health`, `GET /ready`, `GET /metrics`, `GET /` |
 | Agent invocation | `POST /api/v1/agent/invoke` |
-| Agent registry | `POST/GET /api/v1/agents`, `GET/PATCH /api/v1/agents/{id}` |
+| Agent registry | `POST/GET /api/v1/agents`, `GET/PATCH /api/v1/agents/{id}`, `GET /api/v1/agents/{id}/versions` |
 | Test runs | `POST/GET /api/v1/test-runs`, `GET /api/v1/test-runs/{id}` |
 | Results | `GET /api/v1/test-runs/{id}/results`, `GET /api/v1/evaluations/{id}` |
 | Traces | `GET /api/v1/test-runs/{id}/traces` |
-| Risk | `GET /api/v1/test-runs/{id}/risk`, `GET /api/v1/dashboard/summary` |
+| Risk | `GET /api/v1/test-runs/{id}/risk`, `GET /api/v1/test-runs/{id}/report`, `GET /api/v1/dashboard/summary` |
 | Policy | `GET /api/v1/dashboard/policy` |
-| Root cause | `POST /api/v1/root-cause/analyze` |
+| Investigation | `POST /api/v1/root-cause/analyze`, `POST /api/v1/evaluations/{id}/analyze`, `POST /api/v1/evaluations/{id}/regression` |
 
 Interactive API documentation is available at `/docs` when the backend is running.
 

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.agent import Agent
+from app.models.agent_version import AgentVersion
 
 
 def _serialize(agent: Agent) -> dict[str, Any]:
@@ -15,19 +16,23 @@ def _serialize(agent: Agent) -> dict[str, Any]:
         "description": agent.description,
         "version": agent.version,
         "status": agent.status,
+        "environment": agent.environment,
         "config": json.loads(agent.config) if agent.config else None,
     }
 
 
 def create_agent(db: Session, data: dict[str, Any]) -> dict[str, Any]:
+    version = data.get("version", "1.0.0")
     agent = Agent(
         id=str(uuid.uuid4()),
         name=data["name"].strip(),
         description=data.get("description"),
-        version=data.get("version", "1.0.0"),
+        version=version,
+        environment=data.get("environment", "development"),
         config=json.dumps(data.get("config")) if data.get("config") is not None else None,
     )
     db.add(agent)
+    db.add(AgentVersion(id=str(uuid.uuid4()), agent_id=agent.id, version=version, environment=agent.environment, config=agent.config))
     db.commit()
     db.refresh(agent)
     return _serialize(agent)

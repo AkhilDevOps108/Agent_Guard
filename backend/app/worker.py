@@ -21,5 +21,11 @@ def run_test_run(run_id: str, categories: list[str], inputs: list[str] | None = 
         db.commit()
         run_evaluation(db, run, categories, inputs)
         return run_id
+    except Exception:
+        run = db.get(TestRun, run_id)
+        if run is not None:
+            run.status = "failed"
+            db.commit()
+        raise
     finally:
         db.close()

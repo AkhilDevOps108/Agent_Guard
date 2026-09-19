@@ -1,0 +1,78 @@
+name: AgentGuard Evaluation Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  evaluate-reference-agent:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agentguard
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d agentguard"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/agentguard
+        run: |
+          ./venv/bin/alembic upgrade head || alembic upgrade head
+      - name: Start API
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/agentguard
+          REDIS_URL: redis://localhost:6379/0
+          PYTHONPATH: backend
+        run: |
+          nohup uvicorn app.main:app --app-dir backend --port 8000 &
+          nohup celery -A app.worker.celery_app worker --loglevel=warning &
+          for attempt in $(seq 1 20); do curl --fail http://localhost:8000/health && break || sleep 2; done
+      - name: Register and evaluate reference agent
+        env:
+          PYTHONPATH: backend
+        run: |
+          AGENT_ID=$(curl --fail -s -X POST http://localhost:8000/api/v1/agents \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI Reference Agent","version":"1.0.0"}' | python -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          RUN_ID=$(curl --fail -s -X POST http://localhost:8000/api/v1/test-runs \
+            -H 'Content-Type: application/json' \
+            -d "{\"agent_id\":\"$AGENT_ID\",\"categories\":[\"security\",\"quality\",\"reliability\"]}" | python -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          for attempt in $(seq 1 30); do
+            STATUS=$(curl --fail -s "http://localhost:8000/api/v1/test-runs/$RUN_ID" | python -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+            [ "$STATUS" = "completed" ] && break
+            [ "$STATUS" = "failed" ] && exit 1
+            sleep 2
+          done
+          curl --fail -s "http://localhost:8000/api/v1/test-runs/$RUN_ID/report" | tee agentguard-report.json
+          test "$(python -c 'import json; print(json.load(open("agentguard-report.json"))["deployment_decision"])')" != "BLOCKED"
+      - name: Upload evaluation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentguard-report
+          path: agentguard-report.json

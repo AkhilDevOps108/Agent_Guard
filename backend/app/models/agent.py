@@ -16,6 +16,7 @@ class Agent(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(String(64), default="1.0.0")
     status: Mapped[str] = mapped_column(String(32), default="active")
+    environment: Mapped[str] = mapped_column(String(64), default="development", nullable=False)
     config: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
